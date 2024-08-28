@@ -26,13 +26,13 @@ contract Dex is ERC20{
 			revert("ERC20: insufficient allowance");
 		}	
 		a_cnt = token_a.balanceOf(msg.sender);
-		b_cnt = token_a.balanceOf(msg.sender);
+		b_cnt = token_b.balanceOf(msg.sender);
 		if( a_cnt < a1 || b_cnt < a2){
 			revert("ERC20: transfer amount exceeds balance");
 		}	
 		uint totalSupply = totalSupply();
 		if (totalSupply == 0) {
-			mint_cnt = (a1 + a2) / 2;
+			mint_cnt = a2;
 		}
 		else {
 			if(a1 < a2){
@@ -48,16 +48,51 @@ contract Dex is ERC20{
 		_mint(msg.sender, mint_cnt);
 		return mint_cnt;	
 	}
-	function removeLiquidity(uint a1, uint256 a2, uint256 a3) external returns(uint, uint){
-		
+	function removeLiquidity(uint burn_cnt, uint256 a_min, uint256 b_min) external returns(uint, uint){
 		uint r1;
 		uint r2;
+		uint dtk = balanceOf(msg.sender);
+		require(dtk >= burn_cnt, "Insufficient LP tokens to burn");
+		uint pool_a = token_a.balanceOf(address(this));
+		uint pool_b = token_b.balanceOf(address(this));
+		uint totalSupply = totalSupply();
+
+		r1 = (burn_cnt * pool_a) / totalSupply;
+		r2 = (burn_cnt * pool_b) / totalSupply;
+		console.log(r1);
+		console.log(r2);
+		require( a_min <= r1,"RemoveLiquidity minimum return error");
+		require( b_min <= r2,"RemoveLiquidity minimum return error");
+		_burn(msg.sender, burn_cnt);
+		token_a.transfer(msg.sender, r1);
+		token_b.transfer(msg.sender, r2);
 
 		return (r1, r2);
 	}
-	function swap(uint a1, uint a2, uint a3) external returns(uint ret){
+	function swap(uint a_token_amount, uint b_token_amount, uint min_swap) external returns(uint ret){
 		uint ret;
+		uint pool_a = token_a.balanceOf(address(this));
+		uint pool_b = token_b.balanceOf(address(this));
+		uint fee = 999;
+		bool target = a_token_amount > b_token_amount ? true:false;
+		uint256 swap_amount; 
+		if(target){
+			require(b_token_amount == 0);
+			swap_amount = pool_b - ((pool_a * pool_b) / (pool_a + a_token_amount));
+			swap_amount = swap_amount * fee / 1000;
+			require(swap_amount >= min_swap, "Output amount is less than the minimum required");
+			token_a.transferFrom(msg.sender,address(this), a_token_amount);
+			token_b.transfer(msg.sender, swap_amount);
+		}
+		else{
+			require(a_token_amount == 0);
+			swap_amount = pool_a - ((pool_a * pool_b) / (pool_b + b_token_amount));
+			swap_amount = swap_amount * fee / 1000;
+			require(swap_amount >= min_swap, "Output amount is less than the minimum required");
+			token_b.transferFrom(msg.sender,address(this), b_token_amount);
+			token_a.transfer(msg.sender, swap_amount);
+		}
 
-		return ret;
+		return swap_amount;
 	}
 }
