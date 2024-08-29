@@ -32,7 +32,14 @@ contract Dex is ERC20{
 		}	
 		uint totalSupply = totalSupply();
 		if (totalSupply == 0) {
-			mint_cnt = a2;
+			uint cont_a_cnt = token_a.balanceOf(address(this));
+			uint cont_b_cnt = token_b.balanceOf(address(this));
+			if(a1 + cont_a_cnt < a2 + cont_b_cnt){
+				mint_cnt = a2 + cont_b_cnt;
+			}
+			else{
+				mint_cnt = a1 + cont_a_cnt;
+			}
 		}
 		else {
 			if(a1 < a2){
